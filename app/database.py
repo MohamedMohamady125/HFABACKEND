@@ -6,5 +6,6 @@ def get_connection():
         host=settings.DB_HOST,
         user=settings.DB_USER,
         password=settings.DB_PASSWORD,
-        database=settings.DB_NAME
+        database=settings.DB_NAME,
+        port=settings.DB_PORT
     )

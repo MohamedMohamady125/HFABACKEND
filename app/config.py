@@ -5,19 +5,18 @@ load_dotenv()
 
 class Settings:
     def __init__(self):
-        # Use Railway's built-in MySQL variables directly
-        self.DB_HOST = os.environ.get("MYSQLHOST", "mysql.railway.internal")
-        self.DB_USER = os.environ.get("MYSQLUSER", "root")
-        self.DB_PASSWORD = os.environ.get("MYSQL_ROOT_PASSWORD", "")
-        self.DB_NAME = os.environ.get("MYSQL_DATABASE", "railway")
+        # Use public MySQL connection temporarily
+        self.DB_HOST = "crossover.proxy.rlwy.net"
+        self.DB_USER = "root"
+        self.DB_PASSWORD = "omqxUvCPxFkGeCYjMYzfylckhYzcFwWV"
+        self.DB_NAME = "railway"
+        self.DB_PORT = 42459
         self.JWT_SECRET = os.environ.get("JWT_SECRET")
         self.JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM")
         self.SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
         self.FROM_EMAIL = os.environ.get("FROM_EMAIL")
         
-        # Debug output
-        print(f"🔍 Using MYSQLHOST: {self.DB_HOST}")
-        print(f"🔍 Using MYSQLUSER: {self.DB_USER}")
-        print(f"🔍 Using MYSQL_DATABASE: {self.DB_NAME}")
+        print(f"🔍 DB_HOST: {self.DB_HOST}")
+        print(f"🔍 DB_PORT: {self.DB_PORT}")
 
 settings = Settings()
