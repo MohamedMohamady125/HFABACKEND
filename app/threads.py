@@ -93,6 +93,7 @@ def ensure_branch_thread(branch_id: int, user=Depends(get_current_user)):
     finally:
         cursor.close()
         conn.close()
+
 @router.get("/{thread_id}/posts")
 def get_posts(thread_id: int):
     conn = get_connection()
@@ -176,3 +177,82 @@ def post_message(thread_id: int, data: MessageCreate, user=Depends(get_current_u
         cursor.close()
         conn.close()
 
+# ✅ NEW ENDPOINT: Delete all head coach messages in a branch
+@router.delete("/branch/{branch_id}/delete-head-coach-messages")
+def delete_all_head_coach_messages(branch_id: int, user=Depends(get_current_user)):
+    """
+    Delete all messages sent by head coaches in threads for a specific branch.
+    Only head coaches can perform this action.
+    """
+    # Check if user is head coach
+    if user["role"] != "head_coach":
+        raise HTTPException(
+            status_code=403,
+            detail="Only head coaches can delete messages"
+        )
+    
+    # Verify user can access this branch
+    can_access_branch(user, branch_id)
+    
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # First, get all thread IDs for this branch
+        cursor.execute("""
+            SELECT id FROM threads 
+            WHERE branch_id = %s
+        """, (branch_id,))
+        threads = cursor.fetchall()
+        
+        if not threads:
+            return {
+                "success": True,
+                "message": "No threads found for this branch",
+                "deleted_count": 0
+            }
+        
+        thread_ids = [thread["id"] for thread in threads]
+        
+        # Count messages by head coaches in these threads before deletion
+        placeholders = ','.join(['%s'] * len(thread_ids))
+        cursor.execute(f"""
+            SELECT COUNT(*) as count
+            FROM posts p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.thread_id IN ({placeholders}) 
+            AND u.role = 'head_coach'
+        """, thread_ids)
+        
+        count_result = cursor.fetchone()
+        deleted_count = count_result["count"] if count_result else 0
+        
+        # Delete all messages by head coaches in these threads
+        if deleted_count > 0:
+            cursor.execute(f"""
+                DELETE p FROM posts p
+                JOIN users u ON p.user_id = u.id
+                WHERE p.thread_id IN ({placeholders}) 
+                AND u.role = 'head_coach'
+            """, thread_ids)
+        
+        conn.commit()
+        
+        return {
+            "success": True,
+            "message": f"Successfully deleted {deleted_count} head coach messages",
+            "deleted_count": deleted_count
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        print(f"Error deleting head coach messages: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete messages: {str(e)}"
+        )
+    finally:
+        cursor.close()
+        conn.close()
