@@ -219,13 +219,19 @@ def delete_athlete(athlete_id: int, user=Depends(get_current_user)):
         except Exception as measurements_error:
             print(f"⚠️ Measurements cleanup failed: {measurements_error}")
         
-        # 6. Delete notifications (references user_id) - THIS WAS MISSING!
+        # 6. Delete notifications (references user_id)
         print(f"🔄 Deleting notifications...")
         cursor.execute("DELETE FROM notifications WHERE user_id = %s", (user_id,))
         notifications_deleted = cursor.rowcount
         print(f"✅ Deleted {notifications_deleted} notification records")
         
-        # 7. Delete any posts by this user (references user_id)
+        # 7. DELETE DEVICE TOKENS (references user_id) - THIS WAS THE MISSING PIECE!
+        print(f"🔄 Deleting device tokens...")
+        cursor.execute("DELETE FROM device_tokens WHERE user_id = %s", (user_id,))
+        device_tokens_deleted = cursor.rowcount
+        print(f"✅ Deleted {device_tokens_deleted} device token records")
+        
+        # 8. Delete any posts by this user (references user_id)
         try:
             print(f"🔄 Deleting user posts...")
             cursor.execute("DELETE FROM posts WHERE user_id = %s", (user_id,))
@@ -234,7 +240,7 @@ def delete_athlete(athlete_id: int, user=Depends(get_current_user)):
         except Exception as posts_error:
             print(f"⚠️ Posts cleanup failed: {posts_error}")
         
-        # 8. Delete registration requests (if any reference this user)
+        # 9. Delete registration requests (if any reference this user)
         try:
             print(f"🔄 Deleting registration requests...")
             cursor.execute("DELETE FROM registration_requests WHERE email = (SELECT email FROM users WHERE id = %s)", (user_id,))
@@ -243,14 +249,14 @@ def delete_athlete(athlete_id: int, user=Depends(get_current_user)):
         except Exception as requests_error:
             print(f"⚠️ Registration requests cleanup failed: {requests_error}")
         
-        # 9. Delete athlete record
+        # 10. Delete athlete record
         print(f"🔄 Deleting athlete record...")
         cursor.execute("DELETE FROM athletes WHERE id = %s", (athlete_id,))
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Athlete record not found")
         print(f"✅ Deleted athlete record")
         
-        # 10. Finally, delete user record (this was failing before)
+        # 11. Finally, delete user record (should work now that device_tokens are gone)
         print(f"🔄 Deleting user record...")
         cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
         if cursor.rowcount == 0:
