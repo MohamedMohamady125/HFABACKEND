@@ -142,7 +142,7 @@ def create_thread(branch_id: int, data: ThreadCreate, user=Depends(get_current_u
         conn.close()
 
 @router.post("/{thread_id}/post")
-def post_message(thread_id: int, data: MessageCreate, user=Depends(get_current_user)):
+async def post_message(thread_id: int, data: MessageCreate, user=Depends(get_current_user)):
     if user["role"] not in ["coach", "head_coach"]:
         raise HTTPException(status_code=403, detail="Only coaches can post to threads")
 
@@ -157,14 +157,23 @@ def post_message(thread_id: int, data: MessageCreate, user=Depends(get_current_u
         if not thread:
             raise HTTPException(status_code=404, detail="Thread not found")
         
-        # Optional: Verify user can access this branch
-        # can_access_branch(user, thread[0])
-        
         cursor.execute("""
             INSERT INTO posts (thread_id, user_id, message, created_at) 
             VALUES (%s, %s, %s, NOW())
         """, (thread_id, user["id"], data.message))
         conn.commit()
+        
+        # ✅ NEW: Send notification to branch users
+        try:
+            from app.services.notification_service import NotificationService
+            await NotificationService.send_thread_notification(
+                thread_id=thread_id,
+                sender_id=user["id"],
+                message_preview=data.message
+            )
+        except Exception as e:
+            # Don't fail the post if notification fails
+            print(f"Notification error: {e}")
         
         return {"message": "Post added", "success": True}
         
@@ -176,6 +185,7 @@ def post_message(thread_id: int, data: MessageCreate, user=Depends(get_current_u
     finally:
         cursor.close()
         conn.close()
+
 
 # ✅ NEW ENDPOINT: Delete all head coach messages in a branch
 @router.delete("/branch/{branch_id}/delete-head-coach-messages")

@@ -71,13 +71,12 @@ def get_gear(branch_id: int, user=Depends(get_current_user)):
     return post or {"message": "No gear updates posted yet"}
 
 @router.post("/{branch_id}")
-def post_gear(branch_id: int, data: GearPost, user=Depends(get_current_user)):
+async def post_gear(branch_id: int, data: GearPost, user=Depends(get_current_user)):
     if user["role"] not in ["coach", "head_coach"]:
         raise HTTPException(status_code=403, detail="Only coaches can post gear")
     
-    # ✅ CRITICAL FIX: Head coaches can post gear to any branch
+    # Head coaches can post gear to any branch - NO BRANCH CHECK
     if user["role"] == "head_coach":
-        # Head coaches can post gear to any branch - NO BRANCH CHECK
         print(f"✅ Head coach {user['id']} posting gear to branch {branch_id} - ALLOWED")
     else:
         # ONLY check branch assignment for regular coaches
@@ -110,6 +109,17 @@ def post_gear(branch_id: int, data: GearPost, user=Depends(get_current_user)):
             (thread_id, user["id"], data.content)
         )
         conn.commit()
+        
+        # ✅ NEW: Send notification to branch users
+        try:
+            from app.services.notification_service import NotificationService
+            await NotificationService.send_gear_notification(
+                branch_id=branch_id,
+                sender_id=user["id"]
+            )
+        except Exception as e:
+            # Don't fail the post if notification fails
+            print(f"Gear notification error: {e}")
         
         print(f"✅ Successfully posted gear to branch {branch_id} by user {user['id']} ({user['role']})")
         return {"message": "Gear update posted successfully"}

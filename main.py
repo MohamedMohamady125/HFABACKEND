@@ -10,6 +10,8 @@ from app import head_coach
 from app import coach_assignments
 from app.performance import replace_all_performance_logs, ReplaceAllLogsInput
 from app.deps import get_current_user
+from dotenv import load_dotenv
+load_dotenv()
 
 
 app = FastAPI()
