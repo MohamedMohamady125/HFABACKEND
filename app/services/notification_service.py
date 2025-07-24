@@ -10,9 +10,6 @@ load_dotenv()
 # VAPID Configuration
 VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY")
 VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY")
-VAPID_CLAIMS = {
-    "sub": os.getenv("VAPID_EMAIL", "mailto:admin@hfa.com")
-}
 
 class NotificationService:
     
@@ -28,11 +25,22 @@ class NotificationService:
                 }
             }
             
+            # ✅ Extract origin from endpoint for correct aud claim
+            from urllib.parse import urlparse
+            parsed_endpoint = urlparse(endpoint)
+            origin = f"{parsed_endpoint.scheme}://{parsed_endpoint.netloc}"
+            
+            # Use dynamic VAPID claims with correct audience
+            dynamic_vapid_claims = {
+                "sub": os.getenv("VAPID_EMAIL", "mailto:mohamadhany97@gmail.com"),
+                "aud": origin
+            }
+            
             webpush(
                 subscription_info=subscription_info,
                 data=message,
                 vapid_private_key=VAPID_PRIVATE_KEY,
-                vapid_claims=VAPID_CLAIMS
+                vapid_claims=dynamic_vapid_claims  # ← Use dynamic claims instead of static
             )
             return True
             
